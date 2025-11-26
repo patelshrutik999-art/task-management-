@@ -1,0 +1,13 @@
+{
+ {
+  "amount": 10.00,          
+  "currency": "usd",
+  "internshipId": "645..." 
+}
+}
+
+{
+  "clientSecret": "pi_...secret...",
+  "paymentIntentId": "pi_...",
+  "status": "requires_payment_method"
+}
