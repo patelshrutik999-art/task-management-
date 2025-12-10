@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise Role-Based Dashboard</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Use Inter Font -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fc;
+        }
+        /* Custom scrollbar for better aesthetics */
+        .custom-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1; /* slate-300 */
+            border-radius: 3px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background-color: #f1f5f9; /* slate-100 */
+        }
+    </style>
+    <script>
+        // Tailwind CSS configuration for custom colors
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary': '#1e3a8a', // Dark Blue
+                        'secondary': '#f97316', // Orange
+                        'success': '#10b981', // Emerald Green
+                        'warning': '#f59e0b', // Amber Yellow
+                        'danger': '#ef4444', // Red
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="min-h-screen flex flex-col lg:flex-row bg-gray-50 text-gray-800">
+
+    <!-- Sidebar / Role Selector -->
+    <nav id="sidebar" class="bg-primary lg:w-64 p-4 lg:p-6 shadow-xl lg:flex-shrink-0 flex flex-col space-y-4 fixed w-full z-20 lg:static hidden">
+        <h1 class="text-2xl font-bold text-white mb-4 hidden lg:block">Dashboard System</h1>
+        
+        <!-- Logged Role Display -->
+        <div class="p-2 bg-primary-700 rounded-lg text-white text-xs">
+            <p class="font-semibold">Logged Role:</p>
+            <span id="logged-role-display" class="break-all text-xs font-mono opacity-80">---</span>
+        </div>
+        
+        <!-- Note: User ID removed as there is no authentication layer now -->
+
+        <!-- Role Selection Buttons (for Mobile and Desktop) -->
+        <div id="role-selector" class="flex flex-wrap gap-2 lg:flex-col lg:space-y-2 lg:gap-0 custom-scroll overflow-x-auto pb-2">
+            <!-- Buttons will be rendered here by JS -->
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow p-4 md:p-8 lg:ml-64 mt-28 lg:mt-0 z-10 hidden" id="main-content-area">
+        <header class="mb-8 flex justify-between items-center">
+            <div>
+                <h2 id="dashboard-title" class="text-3xl md:text-4xl font-extrabold text-gray-900"></h2>
+                <p id="dashboard-subtitle" class="text-lg text-gray-500 mt-1">Use the 'Edit Data' button to update the metrics on this dashboard (local session only).</p>
+            </div>
+            <!-- Edit Data Button (Admin Panel Access) -->
+            <button id="edit-data-btn" class="bg-secondary text-white py-2 px-4 rounded-lg font-semibold shadow-md hover:bg-secondary/90 transition-all text-sm whitespace-nowrap">
+                Edit Data (Admin Panel)
+            </button>
+        </header>
+        
+        <!-- Dashboard Content Area (Dynamic) -->
+        <div id="dashboard-content" class="space-y-8">
+            <!-- Content will be rendered here by JS -->
+        </div>
+        
+        <!-- Loading Indicator (Kept for visual consistency during complex rendering) -->
+        <div id="loading-spinner" class="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50 hidden">
+            <div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-primary"></div>
+        </div>
+    </main>
+    
+    <!-- Login Modal -->
+    <div id="login-modal" class="fixed inset-0 bg-gray-900 bg-opacity-95 flex items-center justify-center z-50">
+        <div class="bg-white p-8 md:p-10 rounded-xl shadow-2xl w-full max-w-sm m-4 transform transition-all">
+            <h3 class="text-3xl font-bold mb-6 text-primary text-center">Role-Based Login</h3>
+            <form id="login-form" class="space-y-6">
+                <div>
+                    <label for="role-select" class="block text-sm font-medium text-gray-700 mb-1">Select Your Role</label>
+                    <select id="role-select" name="role" required class="block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-secondary focus:border-secondary">
+                        <option value="">-- Select Role --</option>
+                        <!-- Options populated by JS -->
+                    </select>
+                </div>
+                <div>
+                    <label for="passcode-input" class="block text-sm font-medium text-gray-700 mb-1">Passcode</label>
+                    <input type="password" id="passcode-input" name="passcode" required placeholder="Enter 4-digit Passcode" maxlength="4" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-secondary focus:border-secondary">
+                </div>
+                <button type="submit" class="w-full bg-secondary text-white py-3 rounded-lg font-bold text-lg hover:bg-secondary/90 transition-colors shadow-lg">
+                    Enter Dashboard
+                </button>
+                <p id="login-error" class="text-danger text-center text-sm mt-3 hidden"></p>
+            </form>
+            <p class="text-xs text-gray-400 text-center mt-6">Use passcodes 1111-7777 for demonstration.</p>
+        </div>
+    </div>
+
+
+    <!-- Edit Data Modal (The per-role Admin Panel) -->
+    <div id="edit-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 hidden">
+        <div class="bg-white p-6 md:p-8 rounded-xl shadow-2xl w-full max-w-lg m-4 transform transition-all">
+            <h3 id="modal-title" class="text-2xl font-bold mb-4 text-primary">Edit Data</h3>
+            <form id="edit-form" class="space-y-4">
+                <!-- Form fields will be inserted here dynamically -->
+            </form>
+            <div class="flex justify-end space-x-3 mt-6">
+                <button id="close-modal-btn" class="bg-gray-200 text-gray-700 py-2 px-4 rounded-lg font-semibold hover:bg-gray-300 transition-colors">Close</button>
+                <button id="save-data-btn" type="submit" form="edit-form" class="bg-success text-white py-2 px-4 rounded-lg font-semibold hover:bg-success/90 transition-colors">Save</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        // --- DATA STRUCTURE & CONFIGURATION (Local Data) ---
+        let currentRole = null; 
+        
+        // Passcodes for simulated role login
+        const ROLE_PASSCODES = {
+            'CEO': '1111', 'COO': '7777', 'CTO': '6666', 
+            'PM': '5555', 'Sales': '2222', 'Dev': '3333', 'UX': '4444'
+        };
+
+        const roles = [
+            { id: 'CEO', name: 'CEO (Top-Level)' },
+            { id: 'COO', name: 'COO (Operations)' },
+            { id: 'CTO', name: 'CTO (Tech View)' },
+            { id: 'PM', name: 'Project Manager' },
+            { id: 'Sales', name: 'Sales Executive' },
+            { id: 'Dev', name: 'Web Developer' },
+            { id: 'UX', name: 'UI/UX Designer' },
+        ];
+        
+        // This object holds all dashboard data in memory (non-persistent)
+        let dashboardData = {
+            CEO: { totalProjects: 45, activeProjects: 18, totalRevenue: '₹ 5.8 Cr', profit: '₹ 35.5 Lac', teamScore: 8.7, newLeads: 42, delayedProjects: 5 },
+            COO: { totalProjects: 45, completedProjects: 22, monthlyRevenue: '₹ 48 Lac', expenseSummary: '₹ 12.5 Lac', totalClients: 85, activeProjects: 18, delayedProjects: 5 },
+            CTO: { performanceKPI: 98, bugCount: 12, deployStatus: 'Stable' },
+            PM: { delayedTasks: 4, highRiskProjects: 2, upcomingMilestones: 3 },
+            Sales: { assigned: 120, hot: 15, warm: 45, cold: 60, converted: 18, lost: 12, conversionRate: 15 },
+            Dev: { assigned: 15, inProgress: 7, completed: 8, bugsAssigned: 3, prPending: 2, velocity: 7.5 },
+            UX: { requests: 8, wireframesPending: 3, uiPending: 5, revisions: 2, completed: 12, handoff: 10 },
+        };
+        
+        let currentRoleData = dashboardData[roles[0].id]; // Default to CEO data
+        let currentFieldsForModal = []; // Fields for the current role's editor
+
+        // --- CORE UTILITY FUNCTIONS ---
+
+        const createCard = (title, value, colorClass = 'text-primary') => `
+            <div class="bg-white p-6 rounded-xl shadow-lg border-l-4 border-primary hover:shadow-xl transition-shadow duration-300">
+                <p class="text-sm font-medium text-gray-500">${title}</p>
+                <h3 class="text-3xl font-bold mt-1 ${colorClass}">${value}</h3>
+            </div>
+        `;
+
+        const createListItem = (title, details) => `
+            <li class="p-3 bg-gray-50 rounded-lg flex justify-between items-center hover:bg-gray-100 transition-colors">
+                <span class="text-sm font-medium text-gray-700">${title}</span>
+                <span class="text-xs text-gray-500">${details}</span>
+            </li>
+        `;
+        
+        const createSectionHeader = (title, icon) => `
+            <div class="flex items-center space-x-2 border-b pb-2 mb-4">
+                ${icon ? `<span class="text-xl text-primary">${icon}</span>` : ''}
+                <h3 class="text-xl font-semibold text-gray-800">${title}</h3>
+            </div>
+        `;
+
+        // --- ROLE RENDER FUNCTIONS (Using currentRoleData) ---
+
+        const renderCEO_COO_Content = (roleId) => {
+            const data = currentRoleData;
+            const titleText = roleId === 'CEO' ? 'CEO Dashboard: Strategy & Finance' : 'COO Dashboard: Operations & Metrics';
+
+            const fields = roleId === 'CEO' ? ['totalRevenue', 'profit', 'totalProjects', 'activeProjects', 'delayedProjects', 'newLeads', 'teamScore'] : 
+                                             ['monthlyRevenue', 'expenseSummary', 'totalClients', 'completedProjects', 'activeProjects', 'delayedProjects'];
+                                             
+            const kpiCards = [
+                createCard('Total Projects', data.totalProjects || 0, 'text-primary'),
+                createCard('Active Projects', data.activeProjects || 0, 'text-primary'),
+                createCard('Delayed Projects', data.delayedProjects || 0, 'text-danger'),
+                createCard('Total Revenue (YTD)', data.totalRevenue || '₹ 0', 'text-success'),
+                createCard('Monthly Profit Snapshot', data.profit || '₹ 0', 'text-success'),
+                createCard('Team Performance Score', data.teamScore || 0, 'text-warning'),
+                createCard('New Leads (MoM)', data.newLeads || 0, 'text-secondary'),
+                createCard('Total Clients', data.totalClients || 0, 'text-primary'),
+            ].filter(cardHtml => fields.some(f => cardHtml.includes(f))).join('');
+
+            const profitValue = parseFloat((data.profit || '₹ 0').replace(/[^\d.]/g, ''));
+            const lastMonthHeight = Math.min(100, Math.max(10, profitValue * 2)); 
+
+            const pnLChart = `
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    ${createSectionHeader('Profit / Loss Trend (Last 6 Months)', '📊')}
+                    <div class="h-64 flex items-end space-x-3 pt-4">
+                        ${[30, 40, 50, 45, 60, lastMonthHeight].map((h, i) => `
+                            <div class="w-1/6 bg-primary/70 rounded-t-lg transition-all duration-500 ease-out" style="height: ${h * 1.5}px" title="Month ${i+1}"></div>
+                        `).join('')}
+                    </div>
+                    <div class="flex justify-between text-xs text-gray-500 mt-2">
+                        <span>Jul</span><span>Aug</span><span>Sep</span><span>Oct</span><span>Nov</span><span>Dec</span>
+                    </div>
+                </div>
+            `;
+
+            const workloadSummary = `
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    ${createSectionHeader('Tech + Workload Summary', '🛠️')}
+                    <div class="space-y-4">
+                        ${createListItem('Developers Workload', '85% Utilized')}
+                        ${createListItem('UI/UX Workload', '70% Utilized')}
+                    </div>
+                </div>
+            `;
+
+            return { title: titleText, data: data, fields: fields , html: `
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    ${kpiCards}
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2">${pnLChart}</div>
+                    <div class="lg:col-span-1">${workloadSummary}</div>
+                </div>
+            `};
+        };
+
+        const renderSalesContent = () => {
+            const data = currentRoleData;
+            const totalLeads = data.assigned || 1;
+            
+            const conversionPct = data.conversionRate || 0;
+            const hotPct = (data.hot / totalLeads) * 100;
+            const warmPct = (data.warm / totalLeads) * 100;
+            const coldPct = (data.cold / totalLeads) * 100;
+
+            const kpiCards = [
+                createCard('Total Leads Assigned', data.assigned || 0, 'text-primary'),
+                createCard('Leads Converted (MoM)', data.converted || 0, 'text-success'),
+                createCard('Leads Lost (MoM)', data.lost || 0, 'text-danger'),
+                createCard('Conversion Rate (%)', `${conversionPct}%`, 'text-secondary'),
+            ].join('');
+
+            const mockLeads = [
+                { name: 'FutureTech Solutions', source: 'Referral', nextCall: 'Today, 2 PM' },
+                { name: 'Alpha Innovations', source: 'Website', nextCall: 'Tomorrow, 10 AM' },
+            ];
+
+            const leadStatus = `
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    ${createSectionHeader('Lead Status Breakdown', '🔥')}
+                    <div class="h-8 flex rounded-lg overflow-hidden my-4">
+                        <div class="bg-danger" style="width: ${coldPct}%" title="Cold: ${data.cold}"></div>
+                        <div class="bg-warning" style="width: ${warmPct}%" title="Warm: ${data.warm}"></div>
+                        <div class="bg-success" style="width: ${hotPct}%" title="Hot: ${data.hot}"></div>
+                    </div>
+                    <div class="flex justify-around mt-4 text-sm font-medium">
+                        <span class="flex items-center"><span class="w-3 h-3 bg-danger rounded-full mr-1"></span> Cold (${data.cold || 0})</span>
+                        <span class="flex items-center"><span class="w-3 h-3 bg-warning rounded-full mr-1"></span> Warm (${data.warm || 0})</span>
+                        <span class="flex items-center"><span class="w-3 h-3 bg-success rounded-full mr-1"></span> Hot (${data.hot || 0})</span>
+                    </div>
+                </div>
+            `;
+
+            const followUpList = `
+                <div class="bg-white p-6 rounded-xl shadow-lg h-full">
+                    ${createSectionHeader('Follow-up Reminders', '📞')}
+                    <ul class="space-y-2">
+                        ${mockLeads.map(lead => createListItem(lead.name, `${lead.nextCall} (${lead.source})`)).join('')}
+                    </ul>
+                </div>
+            `;
+
+            return { 
+                title: 'Sales Executive Dashboard', 
+                data: data, 
+                fields: ['assigned', 'hot', 'warm', 'cold', 'converted', 'lost', 'conversionRate'], 
+                html: `
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        ${kpiCards}
+                    </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div>${leadStatus}</div>
+                        <div>${followUpList}</div>
+                    </div>
+                `
+            };
+        };
+
+        const renderDevContent = () => {
+            const data = currentRoleData;
+            
+            const kpiCards = [
+                createCard('Total Assigned Tasks', data.assigned || 0, 'text-primary'),
+                createCard('Tasks In Progress', data.inProgress || 0, 'text-warning'),
+                createCard('Completed Tasks (This Week)', data.completed || 0, 'text-success'),
+                createCard('PR / Review Pending', data.prPending || 0, 'text-secondary'),
+                createCard('Bugs Assigned', data.bugsAssigned || 0, 'text-danger'),
+                createCard('Weekly Velocity (Avg)', `${data.velocity || 0} tasks`, 'text-primary'),
+            ].join('');
+
+            const mockTasks = [
+                { id: 'D-401', project: 'Client Portal', title: 'Implement login API', status: 'In Progress', deadline: '2025-12-15' },
+            ];
+
+            const taskTable = `
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    ${createSectionHeader('Assigned Task Tracking', '📋')}
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deadline</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                ${mockTasks.map(task => `
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${task.project}</td>
+                                        <td class="px-4 py-3 text-sm text-gray-500">${task.title}</td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-warning/20 text-warning">
+                                                ${task.status}
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${task.deadline}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+
+            return { 
+                title: 'Web Developer Dashboard', 
+                data: data, 
+                fields: ['assigned', 'inProgress', 'completed', 'bugsAssigned', 'prPending', 'velocity'], 
+                html: `
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6">
+                        ${kpiCards}
+                    </div>
+                    ${taskTable}
+                `
+            };
+        };
+        
+        const renderUXContent = () => {
+            const data = currentRoleData;
+
+            const kpiCards = [
+                createCard('New Design Requests', data.requests || 0, 'text-primary'),
+                createCard('Wireframes Pending', data.wireframesPending || 0, 'text-warning'),
+                createCard('UI Screens Pending', data.uiPending || 0, 'text-secondary'),
+                createCard('Revisions Requested', data.revisions || 0, 'text-danger'),
+                createCard('Completed Deliverables (MoM)', data.completed || 0, 'text-success'),
+                createCard('Handoff to Dev Status', `${data.handoff || 0} / ${data.completed || 0}`, 'text-primary'),
+            ].join('');
+
+            const workflowBoard = `
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    ${createSectionHeader('Design Workflow Status', '🎨')}
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="p-3 bg-gray-50 rounded-lg border-t-4 border-warning">
+                            <h4 class="font-semibold text-sm mb-2 text-warning">Wireframes (${data.wireframesPending || 0})</h4>
+                            <ul class="space-y-1 text-xs"><li>- Client Portal flow</li></ul>
+                        </div>
+                        <div class="p-3 bg-gray-50 rounded-lg border-t-4 border-secondary">
+                            <h4 class="font-semibold text-sm mb-2 text-secondary">UI Screens (${data.uiPending || 0})</h4>
+                            <ul class="space-y-1 text-xs"><li>- E-Commerce checkout</li></ul>
+                        </div>
+                        <div class="p-3 bg-gray-50 rounded-lg border-t-4 border-success">
+                            <h4 class="font-semibold text-sm mb-2 text-success">Completed & Handoff (${data.completed || 0})</h4>
+                            <ul class="space-y-1 text-xs"><li>- Marketing landing page (Done)</li></ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            const figmaLinks = `
+                <div class="bg-white p-6 rounded-xl shadow-lg h-full">
+                    ${createSectionHeader('Key Assets & Figma Links', '🔗')}
+                    <ul class="space-y-2">
+                        <li class="p-2 bg-gray-50 rounded-lg flex justify-between items-center">
+                            <span class="text-sm font-medium text-gray-700">New Homepage</span>
+                            <a href="#" target="_blank" class="text-xs text-primary hover:underline">Open Link &rarr;</a>
+                        </li>
+                    </ul>
+                </div>
+            `;
+
+            return { 
+                title: 'UI/UX Designer Dashboard', 
+                data: data, 
+                fields: ['requests', 'wireframesPending', 'uiPending', 'revisions', 'completed', 'handoff'], 
+                html: `
+                    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6">
+                        ${kpiCards}
+                    </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="lg:col-span-1">${workflowBoard}</div>
+                        <div class="lg:col-span-1">${figmaLinks}</div>
+                    </div>
+                `
+            };
+        };
+        
+        const renderPMContent = () => {
+            const data = currentRoleData;
+
+            const kpiCards = [
+                createCard('Total Active Projects', 5, 'text-primary'), 
+                createCard('Delayed Tasks', data.delayedTasks || 0, 'text-danger'),
+                createCard('High Risk Projects', data.highRiskProjects || 0, 'text-danger'),
+                createCard('Upcoming Milestones (7 days)', data.upcomingMilestones || 0, 'text-warning'),
+            ].join('');
+            
+            const mockProjects = [
+                { name: 'Alpha Project', status: '90%', risk: 'High', team: 5, deadline: '2025-12-20' },
+            ];
+
+            const projectTable = `
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    ${createSectionHeader('Project Overview & Timeline', '🗓️')}
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project Name</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Risk Level</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deadline</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                ${mockProjects.map(p => `
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${p.name}</td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="w-24 bg-gray-200 rounded-full h-2.5">
+                                                <div class="bg-primary h-2.5 rounded-full" style="width: ${p.status}"></div>
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-danger/20 text-danger">
+                                                ${p.risk}
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${p.deadline}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+
+            const riskNotes = `
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    ${createSectionHeader('Risk Alerts', '🚨')}
+                    <ul class="space-y-3"><li class="text-sm text-danger flex items-start"><span class="mr-2">&bull;</span> Scope creep on Alpha Project</li></ul>
+                </div>
+            `;
+
+            return { 
+                title: 'Project Manager Dashboard', 
+                data: data, 
+                fields: ['delayedTasks', 'highRiskProjects', 'upcomingMilestones'], 
+                html: `
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        ${kpiCards}
+                    </div>
+                    ${projectTable}
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">${riskNotes}</div>
+                `
+            };
+        };
+
+        const renderCTOContent = () => {
+            const data = currentRoleData;
+            
+            const statusColor = data.deployStatus === 'Stable' ? 'bg-success text-white' : 'bg-warning text-gray-800';
+
+            const kpiCards = [
+                createCard('Deployment Status', `<span class="px-2 py-1 rounded-lg ${statusColor}">${data.deployStatus}</span>`, 'text-gray-900'),
+                createCard('System Uptime KPI', `${data.performanceKPI || 0}%`, 'text-success'),
+                createCard('Active Bugs Count', data.bugCount || 0, 'text-danger'),
+                createCard('Bug Trends (MoM)', 'Decreasing (-15% MoM)', 'text-primary'), 
+            ].join('');
+            
+            const techStack = `
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    ${createSectionHeader('Tech Stack Used per Project', '💻')}
+                    <ul class="space-y-3">
+                        <li class="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
+                            <span class="font-medium text-gray-700">React/Node</span>
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-primary/20 text-primary">Standard</span>
+                        </li>
+                    </ul>
+                </div>
+            `;
+            
+            const performanceChart = `
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    ${createSectionHeader('Server/CPU Usage (Last 24h)', '📈')}
+                    <div class="h-64 flex items-end space-x-1 pt-4">
+                        ${[40, 55, 60, 45, 30, 75, 80, 50, 65, 70, 55, 40].map(h => `
+                            <div class="w-1/12 bg-primary/80 rounded-t-sm" style="height: ${h}%"></div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+
+            return { 
+                title: 'CTO Dashboard (Tech View)', 
+                data: data, 
+                fields: ['performanceKPI', 'bugCount', 'deployStatus'], 
+                html: `
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        ${kpiCards}
+                    </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        ${techStack}
+                        ${performanceChart}
+                    </div>
+                `
+            };
+        };
+
+
+        // --- MAIN RENDERING & ADMIN PANEL LOGIC ---
+        
+        const renderDashboardContent = (roleId, roleName) => {
+            let result = {};
+            
+            document.getElementById('initial-message')?.classList.add('hidden');
+            document.getElementById('edit-data-btn').classList.remove('hidden');
+            
+            // Get data for the selected role
+            currentRoleData = dashboardData[roleId];
+
+            switch (roleId) {
+                case 'CEO':
+                case 'COO':
+                    result = renderCEO_COO_Content(roleId);
+                    break;
+                case 'Sales':
+                    result = renderSalesContent();
+                    break;
+                case 'Dev':
+                    result = renderDevContent();
+                    break;
+                case 'UX':
+                    result = renderUXContent();
+                    break;
+                case 'PM':
+                    result = renderPMContent();
+                    break;
+                case 'CTO':
+                    result = renderCTOContent();
+                    break;
+                default:
+                    document.getElementById('dashboard-content').innerHTML = `<div class="p-8 bg-white rounded-xl shadow-lg text-center">Dashboard not configured for ${roleName}.</div>`;
+                    return;
+            }
+
+            currentRole = roleId;
+            currentFieldsForModal = result.fields;
+
+            document.getElementById('dashboard-title').textContent = result.title;
+            document.getElementById('dashboard-content').innerHTML = result.html;
+            
+            // Update active button state
+            document.querySelectorAll('#role-selector button').forEach(btn => {
+                btn.classList.remove('bg-white', 'text-primary', 'shadow-md');
+                btn.classList.add('bg-primary/80', 'text-white', 'hover:bg-white/10');
+                if (btn.dataset.role === roleId) {
+                    btn.classList.add('bg-white', 'text-primary', 'shadow-md', 'lg:bg-white', 'lg:text-primary');
+                    btn.classList.remove('bg-primary/80', 'text-white');
+                }
+            });
+        };
+
+        const switchRoleView = (newRoleId, newRoleName) => {
+            if (newRoleId === currentRole) return;
+            
+            currentRole = newRoleId;
+            document.getElementById('logged-role-display').textContent = `${newRoleId} (View Only)`;
+            
+            // In pure JS, we just render from the local data object immediately
+            renderDashboardContent(currentRole, newRoleName);
+        };
+        
+        const openEditModal = () => {
+            const roleName = roles.find(r => r.id === currentRole).name;
+            const editForm = document.getElementById('edit-form');
+            document.getElementById('modal-title').textContent = `Edit Data: ${roleName}`;
+            editForm.innerHTML = '';
+            
+            currentFieldsForModal.forEach(key => {
+                const value = currentRoleData[key] || '';
+                const isCurrency = key.includes('Revenue') || key.includes('profit') || key.includes('expense');
+                const isNumber = typeof value === 'number' || (typeof value === 'string' && !isNaN(parseFloat(value)) && !isCurrency && !key.includes('deployStatus'));
+
+                const inputType = isNumber ? 'number' : 'text';
+
+                const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                
+                const fieldHtml = `
+                    <div>
+                        <label for="${key}" class="block text-sm font-medium text-gray-700">${label}</label>
+                        <input type="${inputType}" id="${key}" name="${key}" value="${value}" 
+                            class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-primary focus:border-primary">
+                    </div>
+                `;
+                editForm.insertAdjacentHTML('beforeend', fieldHtml);
+            });
+            
+            document.getElementById('edit-modal').classList.remove('hidden');
+        };
+
+        const closeEditModal = () => {
+            document.getElementById('edit-modal').classList.add('hidden');
+        };
+
+        const handleSave = (event) => {
+            event.preventDefault();
+            const formData = new FormData(document.getElementById('edit-form'));
+            const updatedData = {};
+            
+            currentFieldsForModal.forEach(key => {
+                let value = formData.get(key);
+                if (!isNaN(parseFloat(value)) && isFinite(value) && !key.includes('Revenue') && !key.includes('profit') && !key.includes('expense')) {
+                    updatedData[key] = parseFloat(value);
+                } else {
+                    updatedData[key] = value;
+                }
+            });
+            
+            // --- DATA UPDATE: Update the global dashboardData object in memory ---
+            dashboardData[currentRole] = { ...dashboardData[currentRole], ...updatedData };
+            
+            // Re-render the current view immediately to reflect changes
+            renderDashboardContent(currentRole, roles.find(r => r.id === currentRole).name);
+
+            closeEditModal();
+        };
+
+        const handleRoleLogin = (event) => {
+            event.preventDefault();
+            const loginError = document.getElementById('login-error');
+            const roleId = document.getElementById('role-select').value;
+            const passcode = document.getElementById('passcode-input').value;
+            
+            loginError.classList.add('hidden');
+            
+            if (ROLE_PASSCODES[roleId] === passcode) {
+                currentRole = roleId;
+                document.getElementById('logged-role-display').textContent = `${roleId} (Admin)`;
+                document.getElementById('login-modal').classList.add('hidden');
+                document.getElementById('main-content-area').classList.remove('hidden');
+                document.getElementById('sidebar').classList.remove('hidden');
+                
+                // Load and render the selected role's dashboard
+                renderDashboardContent(currentRole, roles.find(r => r.id === currentRole).name);
+                
+            } else {
+                loginError.textContent = 'Invalid Role or Passcode. Please try again.';
+                loginError.classList.remove('hidden');
+            }
+        };
+
+
+        // --- MAIN APPLICATION ENTRY POINT ---
+        const main = () => {
+            // A. Render role buttons in sidebar (needed even before login)
+            const roleSelector = document.getElementById('role-selector');
+            roles.forEach(role => {
+                const button = document.createElement('button');
+                button.dataset.role = role.id;
+                button.className = 'py-2 px-3 rounded-lg text-sm font-semibold transition-colors duration-200 lg:w-full lg:text-left lg:px-4 ' +
+                                   'bg-primary/80 text-white hover:bg-white/10 flex-shrink-0';
+                button.textContent = role.name;
+                button.addEventListener('click', () => switchRoleView(role.id, role.name));
+                roleSelector.appendChild(button);
+            });
+
+            // B. Attach Global Listeners
+            document.getElementById('login-form').addEventListener('submit', handleRoleLogin);
+            document.getElementById('edit-data-btn').addEventListener('click', openEditModal);
+            document.getElementById('close-modal-btn').addEventListener('click', closeEditModal);
+            document.getElementById('edit-form').addEventListener('submit', handleSave);
+
+            // C. Show Login Modal (this also populates the roles dropdown)
+            const roleSelect = document.getElementById('role-select');
+            roleSelect.innerHTML = '<option value="">-- Select Role --</option>';
+            roles.forEach(role => {
+                const option = document.createElement('option');
+                option.value = role.id;
+                option.textContent = role.name;
+                roleSelect.appendChild(option);
+            });
+
+            document.getElementById('login-modal').classList.remove('hidden');
+        };
+
+        document.addEventListener('DOMContentLoaded', main);
+    </script>
+</body>
+</html>
